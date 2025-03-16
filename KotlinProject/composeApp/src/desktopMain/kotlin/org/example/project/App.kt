@@ -24,6 +24,7 @@ fun App() {
     val editorViewModel = remember { FileEditorViewModel() }
     var selectedFile by remember { mutableStateOf<File?>(null) }
     var refreshTrigger by remember { mutableStateOf(0) } // 🔄 Para forzar actualización del árbol
+    var logs by remember { mutableStateOf(mutableListOf<String>()) } // ✅ Lista de logs compartida
 
     MaterialTheme {
         Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
@@ -57,7 +58,7 @@ fun App() {
                     FileTreeView(
                         viewModel = editorViewModel,
                         onFileSelected = { file: File -> selectedFile = file },
-                        onFileClosed = { file -> if (selectedFile == file) selectedFile = null },
+                        onFileClosed = { file -> if (selectedFile == file) selectedFile = null }, // ✅ Se pasa onFileClosed
                         refreshTrigger = refreshTrigger // 🔄 Se pasa el trigger al árbol
                     )
                 }
@@ -81,7 +82,7 @@ fun App() {
                             .weight(editorHeight)
                             .padding(8.dp)
                     ) {
-                        FileEditor(viewModel = editorViewModel, selectedFile = selectedFile)
+                        FileEditor(viewModel = editorViewModel, selectedFile = selectedFile, logs = logs)
                     }
 
                     Box(

@@ -20,10 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-
+import java.util.*
 
 @Composable
-fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
+fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?, logs: MutableList<String>) {
     var fileContents by remember { mutableStateOf(mutableMapOf<File, String>()) }
     var textState by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
@@ -39,7 +39,7 @@ fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
 
     Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
         selectedFile?.let { file ->
-            // 📄 Barra superior con nombre del archivo y botón de guardar
+            // 📄 Barra superior con nombre del archivo y botones de acciones
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -53,15 +53,28 @@ fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
                     modifier = Modifier.align(Alignment.CenterVertically)
                 )
 
-                // 💾 Botón de guardar alineado a la derecha
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            file.writeText(textState) // 💾 Guardar el archivo
+                Row {
+                    // ✅ Mostrar botón "Ejecutar" si el archivo es JSON
+                    if (selectedFile.extension == "json") {
+                        Button(
+                            onClick = { executeJson(selectedFile, logs) }, // Ejecutar proceso
+                            modifier = Modifier.padding(4.dp)
+                        ) {
+                            Text("🚀 Ejecutar")
                         }
                     }
-                ) {
-                    Text("💾 Guardar")
+
+                    // 💾 Botón de guardar alineado a la derecha
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                file.writeText(textState) // 💾 Guardar el archivo
+                            }
+                        },
+                        modifier = Modifier.padding(4.dp)
+                    ) {
+                        Text("💾 Guardar")
+                    }
                 }
             }
 
@@ -101,15 +114,26 @@ fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
                 }
             }
         } ?: Text(
-            "Ningún archivo abierto",
+            "❌ Ningún archivo abierto",
             modifier = Modifier.fillMaxSize().padding(16.dp),
             style = MaterialTheme.typography.h6.copy(color = Color.Gray)
         )
     }
 }
 
+// 📝 Función para ejecutar procesos en archivos JSON y generar logs en la UI
+fun executeJson(file: File, logs: MutableList<String>) {
+//    val logFile = File("logs.txt")
+    val logEntry = "🆔 [${UUID.randomUUID()}] 🚀 Ejecutado JSON: ${file.name} - 📏 Tamaño: ${file.length()} bytes"
 
+    // Guardar el log en archivo
+    saveLogEntry(logEntry)
 
+    // Agregar el log a la lista en la UI
+    logs.add(0, logEntry)
+}
+
+// 📜 Función para resaltar sintaxis (JSON, XML, etc.)
 @Composable
 fun SyntaxHighlighter(text: String, fileType: String): AnnotatedString {
     return buildAnnotatedString {
@@ -126,6 +150,7 @@ fun SyntaxHighlighter(text: String, fileType: String): AnnotatedString {
     }
 }
 
+// 🔄 Vigilante de cambios en archivos (para detectar modificaciones externas)
 @Composable
 fun FileWatcher(file: File) {
     var lastModified by remember { mutableStateOf(file.lastModified()) }
