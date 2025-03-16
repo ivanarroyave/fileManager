@@ -3,6 +3,7 @@ package org.example.project
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.Button
 import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
@@ -25,43 +26,47 @@ import java.io.File
 fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
     var fileContents by remember { mutableStateOf(mutableMapOf<File, String>()) }
     var textState by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val verticalScrollState = rememberScrollState()
     val horizontalScrollState = rememberScrollState()
 
-    // ✅ Carga inicial del archivo sin bloquear la UI
+    // 🔄 Cargar contenido del archivo cuando cambia
     LaunchedEffect(selectedFile) {
         selectedFile?.let { file ->
-            try {
-                if (file.exists() && file.isFile && file.canRead()) {
-                    file.inputStream().bufferedReader().use { reader ->
-                        textState = reader.readText()
-                    }
-                    errorMessage = null
-                } else {
-                    errorMessage = "⚠️ No se puede leer el archivo: Permiso denegado."
-                }
-            } catch (e: Exception) {
-                errorMessage = "⚠️ Error al abrir el archivo: ${e.message}"
-            }
+            textState = file.readText()
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
         selectedFile?.let { file ->
-            // 🔹 Mostrar el nombre del archivo en la parte superior
-            Text(
-                text = "📄 ${file.name}",
-                style = MaterialTheme.typography.h6,
+            // 📄 Barra superior con nombre del archivo y botón de guardar
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colors.primary.copy(alpha = 0.1f))
-                    .padding(8.dp)
-            )
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween // 🔹 Espaciado entre elementos
+            ) {
+                Text(
+                    text = "📄 ${file.name}",
+                    style = MaterialTheme.typography.h6,
+                    modifier = Modifier.align(Alignment.CenterVertically)
+                )
+
+                // 💾 Botón de guardar alineado a la derecha
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            file.writeText(textState) // 💾 Guardar el archivo
+                        }
+                    }
+                ) {
+                    Text("💾 Guardar")
+                }
+            }
 
             // 🔹 Contenedor con scroll vertical y horizontal
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -69,44 +74,31 @@ fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
                         .horizontalScroll(horizontalScrollState)
                         .padding(8.dp)
                 ) {
-                    if (errorMessage != null) {
-                        Text(
-                            text = errorMessage!!,
-                            color = Color.Red,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    } else {
-                        BasicTextField(
-                            value = textState,
-                            onValueChange = { newText ->
-                                textState = newText
-                                fileContents[file] = newText
-
-                                // 🔄 Guardado automático en un hilo separado
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    try {
-                                        file.writeText(newText)
-                                    } catch (e: Exception) {
-                                        errorMessage = "⚠️ Error al guardar: ${e.message}"
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                            textStyle = LocalTextStyle.current.copy(color = Color.Black)
-                        )
-                    }
+                    BasicTextField(
+                        value = textState,
+                        onValueChange = { newText ->
+                            textState = newText // 🔄 Solo actualizar la variable, sin guardar aún
+                            fileContents[file] = newText
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        textStyle = LocalTextStyle.current.copy(color = Color.Black)
+                    )
                 }
 
                 // 🔹 Ubicar correctamente las barras de desplazamiento dentro de `Box`
-                VerticalScrollbar(
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                    adapter = rememberScrollbarAdapter(verticalScrollState)
-                )
+                Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                    VerticalScrollbar(
+                        modifier = Modifier.fillMaxHeight(),
+                        adapter = rememberScrollbarAdapter(verticalScrollState)
+                    )
+                }
 
-                HorizontalScrollbar(
-                    modifier = Modifier.align(Alignment.BottomStart),
-                    adapter = rememberScrollbarAdapter(horizontalScrollState)
-                )
+                Box(modifier = Modifier.align(Alignment.BottomStart)) {
+                    HorizontalScrollbar(
+                        modifier = Modifier.fillMaxWidth(),
+                        adapter = rememberScrollbarAdapter(horizontalScrollState)
+                    )
+                }
             }
         } ?: Text(
             "Ningún archivo abierto",
@@ -115,6 +107,7 @@ fun FileEditor(viewModel: FileEditorViewModel, selectedFile: File?) {
         )
     }
 }
+
 
 
 @Composable
