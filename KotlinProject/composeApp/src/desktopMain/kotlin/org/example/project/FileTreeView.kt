@@ -27,7 +27,12 @@ var clipboardFile: File? = null
 var isCutOperation = false
 
 @Composable
-fun FileTreeView(viewModel: FileEditorViewModel, onFileSelected: (File) -> Unit, refreshTrigger: Int) {
+fun FileTreeView(
+    viewModel: FileEditorViewModel,
+    onFileSelected: (File) -> Unit,
+    onFileClosed: (File) -> Unit, // 🔹 Agregar callback para cerrar archivos eliminados
+    refreshTrigger: Int
+) {
     val basePath = "C:\\Users\\pc\\Desktop\\root"
     var expandedNodes by remember { mutableStateOf(mutableMapOf<String, Boolean>()) }
     var rootNode by remember { mutableStateOf(buildFileTree(File(basePath), expandedNodes)) }
@@ -49,7 +54,8 @@ fun FileTreeView(viewModel: FileEditorViewModel, onFileSelected: (File) -> Unit,
                 viewModel = viewModel,
                 expandedNodes = expandedNodes,
                 onRefresh = { rootNode = buildFileTree(File(basePath), expandedNodes) },
-                onFileSelected = onFileSelected
+                onFileSelected = onFileSelected,
+                onFileClosed = onFileClosed // 🔹 Pasamos el nuevo callback
             )
         }
 
@@ -83,7 +89,8 @@ fun FileTreeNode(
     viewModel: FileEditorViewModel,
     expandedNodes: MutableMap<String, Boolean>,
     onRefresh: () -> Unit,
-    onFileSelected: (File) -> Unit
+    onFileSelected: (File) -> Unit,
+    onFileClosed: (File) -> Unit // 🔹 Agregar callback para cerrar archivos eliminados
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var menuPosition by remember { mutableStateOf(Offset.Zero) }
@@ -128,7 +135,7 @@ fun FileTreeNode(
             Popup(
                 onDismissRequest = { showMenu = false }
             ) {
-                ContextMenu(node.file, menuPosition, onDismiss = { showMenu = false }, onRefresh)
+                ContextMenu(node.file, menuPosition, onDismiss = { showMenu = false }, onRefresh, onFileClosed)
             }
         }
 
@@ -141,7 +148,8 @@ fun FileTreeNode(
                         viewModel = viewModel,
                         expandedNodes = expandedNodes,
                         onRefresh = onRefresh,
-                        onFileSelected = onFileSelected
+                        onFileSelected = onFileSelected,
+                        onFileClosed = onFileClosed
                     )
                 }
             }
@@ -155,7 +163,8 @@ fun ContextMenu(
     file: File,
     position: Offset,
     onDismiss: () -> Unit, // 🔹 Se usará para cerrar el menú
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onFileClosed: (File) -> Unit // 🔹 Agregar callback para cerrar archivos eliminados
 ) {
     Popup(
         offset = IntOffset(position.x.toInt(), position.y.toInt()),
@@ -185,7 +194,7 @@ fun ContextMenu(
                 clipboardFile?.let { pasteFile(it, file, onRefresh) }
             }
             MenuItem("✏️ Renombrar", onDismiss) { renameFile(file, onRefresh) }
-            MenuItem("🗑️ Eliminar", onDismiss) { deleteFile(file, onRefresh) }
+            MenuItem("🗑️ Eliminar", onDismiss) { deleteFile(file, onRefresh, onFileClosed) }
         }
     }
 }
@@ -230,7 +239,7 @@ fun renameFile(file: File, onRefresh: () -> Unit) {
     }
 }
 
-fun deleteFile(file: File, onRefresh: () -> Unit) {
+fun deleteFile(file: File, onRefresh: () -> Unit, onFileClosed: (File) -> Unit) {
     val confirm = JOptionPane.showConfirmDialog(
         null, "¿Seguro que quieres eliminar '${file.name}'?", "Confirmar Eliminación", JOptionPane.YES_NO_OPTION
     )
@@ -238,6 +247,7 @@ fun deleteFile(file: File, onRefresh: () -> Unit) {
     if (confirm == JOptionPane.YES_OPTION) {
         if (file.deleteRecursively()) {
             onRefresh()
+            onFileClosed(file) // 🔹 Notificar al editor que debe cerrar el archivo
         } else {
             JOptionPane.showMessageDialog(null, "No se pudo eliminar el archivo/carpeta.")
         }

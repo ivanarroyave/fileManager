@@ -57,6 +57,7 @@ fun App() {
                     FileTreeView(
                         viewModel = editorViewModel,
                         onFileSelected = { file: File -> selectedFile = file },
+                        onFileClosed = { file -> if (selectedFile == file) selectedFile = null },
                         refreshTrigger = refreshTrigger // 🔄 Se pasa el trigger al árbol
                     )
                 }
